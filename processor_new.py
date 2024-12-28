@@ -92,8 +92,6 @@ class ProcessorNew:
         sub_interval = data.sub_interval
         lst = []
         obj = self.problem.objective
-        if sub_interval.x[1] > self.rec_x:
-            return lst
         if self.rec_x - sub_interval.x[0] <= self.eps:
             self.res_list.append((Interval([sub_interval.x[0], self.rec_x]), 'certain'))
             self.running = False
@@ -101,12 +99,7 @@ class ProcessorNew:
         width_of_interval = sub_interval.x[1] - sub_interval.x[0]
 
         if not self.global_lipint:
-            if data.counter < self.period_comp_lip:
-                data.counter += 1
-            else:
-                self.update_lipschitz(data)
-                self.period_comp_lip = int(128 / math.sqrt(data.lip.x[1] - data.lip.x[0]))
-                data.counter = 0
+            self.update_lipschitz(data)
         lower_estimator = self.compute_bounds(data, under=True)
         left_end = lower_estimator.get_left_end()
 

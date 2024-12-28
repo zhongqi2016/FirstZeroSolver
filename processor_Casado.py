@@ -83,8 +83,7 @@ class CasProcessor:
         obj = self.problem.objective
         if sub.bound[0] <= 0 <= sub.bound[1] and sub.data.ival[0] < self.rec_x:
             if sub.data.ival.x[1] - sub.data.ival.x[0] < self.eps:
-                self.res_list.append(sub.data.split_point)
-                self.running = False
+                self.res_list.append(sub.data.ival)
                 return lst
             else:
                 sub_1 = sb.Sub(sub.level + 1, [0, 0],
