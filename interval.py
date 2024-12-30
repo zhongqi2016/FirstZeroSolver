@@ -8,7 +8,7 @@ class Interval:
         self.x = x.copy()
 
     def __repr__(self):
-        return "[" + str(round(self.x[0], 3)) + ", " + str(round(self.x[1], 3)) + "]"
+        return "[" + str(round(self.x[0], 5)) + ", " + str(round(self.x[1], 5)) + "]"
 
     def __round__(self, n=3):
         return Interval([np.round(self.x[0], 3), np.round(self.x[1], 3)])

@@ -1,5 +1,3 @@
-import math
-
 from interval import Interval
 import psqe_bounds as psqe
 import psl_bounds as psl
