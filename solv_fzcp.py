@@ -33,20 +33,14 @@ def cas(prob, max_steps=sys.maxsize, epsilon=1e-2, known_record=False):
 
 
 def new_method(prob, symm=True, max_steps=sys.maxsize, epsilon=1e-2, global_lipschitz_interval=False,
-               known_record=False, estimator=2, reduction=1, period_comp_lip=0):
+               known_record=False, estimator=2, reduction=1):
     psp = newproc.ProcessorNew(rec_v=get_initial_recval(prob, known_record), rec_x=prob.b, problem=prob,
                                eps=epsilon, global_lipint=global_lipschitz_interval, use_symm_lipint=symm,
-                               estimator=estimator, reduction=reduction, period_comp_lip=period_comp_lip)
+                               estimator=estimator, reduction=reduction)
     sl = []
     interval = ival.Interval([prob.a, prob.b])
-    data = newproc.ProcData(sub_interval=interval, lip=ival.Interval([0, 0]), counter=0)
+    data = newproc.ProcData(sub_interval=interval, lip=ival.Interval([0, 0]))
     psp.update_lipschitz(data)
-    if not global_lipschitz_interval:
-        psp.period_comp_lip = int(128 / math.sqrt(data.lip.x[1] - data.lip.x[0]))
-        if psp.period_comp_lip == 0:
-            psp.period_comp_lip = 1
-    # print(data.lip.x[1] - data.lip.x[0], psp.period_comp_lip)
-    # psp.update_interval(interval)
     sl.append(data)
     cnt = max_steps
     steps = bnb.bnb_fzcp(sl, cnt, psp)

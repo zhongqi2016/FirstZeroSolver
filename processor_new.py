@@ -13,7 +13,7 @@ class ProcData:
     The subproblem data used in algorithm
     """
 
-    def __init__(self, sub_interval: ival.Interval, lip: ival.Interval, counter: int):
+    def __init__(self, sub_interval: ival.Interval, lip: ival.Interval):
         """
         The constructor
         Args:
@@ -22,13 +22,12 @@ class ProcData:
         """
         self.sub_interval = sub_interval
         self.lip = lip
-        self.counter = counter
 
 
 class ProcessorNew:
 
     def __init__(self, rec_v, rec_x, problem, eps, global_lipint=False, use_symm_lipint=False, estimator=2,
-                 reduction=1, period_comp_lip=0):
+                 reduction=1):
         """
         Initializes processor
         Args:
@@ -52,7 +51,6 @@ class ProcessorNew:
         self.estimator = estimator
         self.reduction = reduction
         self.running = True
-        self.period_comp_lip = period_comp_lip
 
     def update_lipschitz(self, data: ProcData):
         """
@@ -132,7 +130,7 @@ class ProcessorNew:
                         self.rec_x = sub_1.x[1]
                     else:
                         data2 = ProcData(sub_interval=ival.Interval([split_point, right_end]),
-                                         lip=copy.deepcopy(data.lip), counter=data.counter)
+                                         lip=copy.deepcopy(data.lip))
                         lst.append(data2)
 
                     data.sub_interval = sub_1
