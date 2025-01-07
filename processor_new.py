@@ -120,8 +120,8 @@ class ProcessorNew:
                 left_end = sub_interval.x[0]
                 right_end = sub_interval.x[1]
             split_point = left_end + (right_end - left_end) / 2
-            if right_end - left_end < self.eps:
-                self.res_list.append((Interval([left_end, right_end]), 'uncertain'))
+            if sub_interval.width() < self.eps:
+                self.res_list.append((sub_interval, 'uncertain'))
             else:
                 new_width = right_end - left_end
                 if new_width / width_of_interval > 0.7:

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import solv_fzcp as sfzcp
 import uvarprob as uvpr
+import interval as ival
 
 
 def log_point(x, points_list):
@@ -25,24 +26,44 @@ bnb2_lip_points_list = []
 
 def getMax(matrix):
     max_values = []
-    for j in range(len(matrix[0])):
-        max_value = matrix[0][j]  # 初始化为第一个元素
-        for i in range(len(matrix)):
-            if matrix[i][j] > max_value:
-                max_value = matrix[i][j]
-        max_values.append(max_value)
+    if isinstance(matrix[0][0], ival.Interval):
+        for j in range(len(matrix[0])):
+            max_value = matrix[0][j].width()
+            for i in range(len(matrix)):
+                if isinstance(matrix[i][j], str):
+                    continue
+                if matrix[i][j].width() > max_value:
+                    max_value = matrix[i][j].width()
+            max_values.append(max_value)
+    else:
+        for j in range(len(matrix[0])):
+            max_value = matrix[0][j]
+            for i in range(len(matrix)):
+                if matrix[i][j] > max_value:
+                    max_value = matrix[i][j]
+            max_values.append(max_value)
     return max_values
 
 
 def getMaxRatio(matrix):
     max_values = []
     end = len(matrix[0]) - 1
-    for j in range(len(matrix[0])):
-        max_value = matrix[0][j] / matrix[0][end]  # 初始化为第一个元素
-        for i in range(len(matrix)):
-            if matrix[i][j] / matrix[i][end] > max_value:
-                max_value = matrix[i][j] / matrix[i][end]
-        max_values.append(max_value)
+    if isinstance(matrix[0][0], ival.Interval):
+        for j in range(len(matrix[0])):
+            max_value = 0
+            for i in range(len(matrix)):
+                if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
+                    continue
+                if matrix[i][j].width() / matrix[i][end].width() > max_value:
+                    max_value = matrix[i][j].width() / matrix[i][end].width()
+            max_values.append(max_value)
+    else:
+        for j in range(len(matrix[0])):
+            max_value = matrix[0][j] / matrix[0][end]
+            for i in range(len(matrix)):
+                if matrix[i][j] / matrix[i][end] > max_value:
+                    max_value = matrix[i][j] / matrix[i][end]
+            max_values.append(max_value)
     return max_values
 
 
@@ -50,7 +71,6 @@ def getMaxRatio2(matrix, begin, end, standard):
     max_values = []
     for j in range(len(matrix[0])):
         max_value = matrix[0][j] / matrix[0][standard]
-        # 初始化为第一个元素
         i = begin
         while i <= end:
             if matrix[i][j] / matrix[i][standard] > max_value:
@@ -62,24 +82,46 @@ def getMaxRatio2(matrix, begin, end, standard):
 
 def getMin(matrix):
     min_values = []
-    for j in range(len(matrix[0])):
-        min_value = matrix[0][j]  # 初始化为第一个元素
-        for i in range(len(matrix)):
-            if matrix[i][j] < min_value:
-                min_value = matrix[i][j]
-        min_values.append(min_value)
+    if isinstance(matrix[0][0], ival.Interval):
+        for j in range(len(matrix[0])):
+            min_value = matrix[0][j].width()
+            for i in range(len(matrix)):
+                if isinstance(matrix[i][j], str):
+                    continue
+                if matrix[i][j].width() < min_value:
+                    min_value = matrix[i][j].width()
+            min_values.append(min_value)
+    else:
+        for j in range(len(matrix[0])):
+            min_value = matrix[0][j]
+            for i in range(len(matrix)):
+                if matrix[i][j] < min_value:
+                    min_value = matrix[i][j]
+            min_values.append(min_value)
     return min_values
 
 
 def getMinRatio(matrix):
     min_values = []
     end = len(matrix[0]) - 1
-    for j in range(len(matrix[0])):
-        min_value = matrix[0][j] / matrix[0][end]  # 初始化为第一个元素
-        for i in range(len(matrix)):
-            if matrix[i][j] / matrix[i][end] < min_value:
-                min_value = matrix[i][j] / matrix[i][end]
-        min_values.append(min_value)
+    if isinstance(matrix[0][0], ival.Interval):
+        for j in range(len(matrix[0])):
+            if isinstance(matrix[0][j], str) or isinstance(matrix[0][end], str):
+                continue
+            min_value = matrix[0][j].width() / matrix[0][end].width()
+            for i in range(len(matrix)):
+                if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
+                    continue
+                if matrix[i][j].width() / matrix[i][end].width() < min_value:
+                    min_value = matrix[i][j].width() / matrix[i][end].width()
+            min_values.append(min_value)
+    else:
+        for j in range(len(matrix[0])):
+            min_value = matrix[0][j] / matrix[0][end]
+            for i in range(len(matrix)):
+                if matrix[i][j] / matrix[i][end] < min_value:
+                    min_value = matrix[i][j] / matrix[i][end]
+            min_values.append(min_value)
     return min_values
 
 
@@ -101,9 +143,16 @@ def getAvg(matrix):
     avg_values = []
     for j in range(len(matrix[0])):
         sum_value = 0
+        count = 0
         for i in range(len(matrix)):
-            sum_value += matrix[i][j]
-        avg_value = sum_value / len(matrix)
+            if isinstance(matrix[i][j], ival.Interval):
+                sum_value += matrix[i][j].width()
+            elif isinstance(matrix[i][j], str):
+                continue
+            else:
+                sum_value += matrix[i][j]
+            count += 1
+        avg_value = sum_value / count
         avg_values.append(avg_value)
     return avg_values
 
@@ -111,12 +160,24 @@ def getAvg(matrix):
 def getAvgRatio(matrix):
     avg_values = []
     end = len(matrix[0]) - 1
-    for j in range(len(matrix[0])):
-        sum_value = 0
-        for i in range(len(matrix)):
-            sum_value += matrix[i][j] / matrix[i][end]
-        avg_value = sum_value / len(matrix)
-        avg_values.append(avg_value)
+    if isinstance(matrix[0][0], ival.Interval):
+        for j in range(len(matrix[0])):
+            sum_value = 0
+            count = 0
+            for i in range(len(matrix)):
+                if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
+                    continue
+                count += 1
+                sum_value += matrix[i][j].width() / matrix[i][end].width()
+            avg_value = sum_value / count
+            avg_values.append(avg_value)
+    else:
+        for j in range(len(matrix[0])):
+            sum_value = 0
+            for i in range(len(matrix)):
+                sum_value += matrix[i][j] / matrix[i][end]
+            avg_value = sum_value / len(matrix)
+            avg_values.append(avg_value)
     return avg_values
 
 
@@ -124,7 +185,6 @@ def getAvgRatio2(matrix, begin, end, standard):
     avg_values = []
     for j in range(len(matrix[0])):
         sum_value = 0
-        # 初始化为第一个元素
         i = begin
         while i <= end:
             sum_value += matrix[i][j] / matrix[i][standard]
@@ -134,21 +194,28 @@ def getAvgRatio2(matrix, begin, end, standard):
     return avg_values
 
 
-def print_row1(row, index):
+def print_row_f3(row, index):
     print('%s' % index, end=' ')
     for roxi in row:
         print('& %.3f' % roxi, end=' ')
     print('\\\\')
 
 
-def print_row2(row, index):
+def print_row_f5(row, index):
+    print('%s' % index, end=' ')
+    for roxi in row:
+        print('& %.5f' % roxi, end=' ')
+    print('\\\\')
+
+
+def print_row_int(row, index):
     print('%s' % index, end=' ')
     for roxi in row:
         print('& %d' % roxi, end=' ')
     print('\\\\')
 
 
-def print_row3(row, index):
+def print_row_f1(row, index):
     print('%s' % index, end=' ')
     for roxi in row:
         print('& %.1f' % roxi, end=' ')
@@ -262,9 +329,9 @@ def test_alg2(df, eps, global_lip, repeat):
     min_list = getMinRatio(time_list)
     max_list = getMaxRatio(time_list)
     avg_list = getAvgRatio(time_list)
-    print_row3(min_list, 'Min')
-    print_row3(max_list, 'Max')
-    print_row3(avg_list, 'Average')
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
 
     index = 0
     print('test.Index,PL_N,PI_N,QL_N,QI_N,PL_R,PI_R,QL_R,QI_R')
@@ -278,9 +345,9 @@ def test_alg2(df, eps, global_lip, repeat):
     min_list = getMinRatio(it_list)
     max_list = getMaxRatio(it_list)
     avg_list = getAvgRatio(it_list)
-    print_row3(min_list, 'Min')
-    print_row3(max_list, 'Max')
-    print_row3(avg_list, 'Average')
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
 
 
 def test_casado(df, eps, repeat):
@@ -333,9 +400,9 @@ def test_casado(df, eps, repeat):
     min_list = getMinRatio(time_list)
     max_list = getMaxRatio(time_list)
     avg_list = getAvgRatio(time_list)
-    print_row3(min_list, 'Min')
-    print_row3(max_list, 'Max')
-    print_row3(avg_list, 'Average')
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
 
     index = 0
     print('Index & IBB & local Lip & global Lip \\')
@@ -346,9 +413,9 @@ def test_casado(df, eps, repeat):
     min_list = getMinRatio(it_list)
     max_list = getMaxRatio(it_list)
     avg_list = getAvgRatio(it_list)
-    print_row3(min_list, 'Min')
-    print_row3(max_list, 'Max')
-    print_row3(avg_list, 'Average')
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
 
 
 def test_alg3(df, eps, global_lip, repeat):
@@ -452,9 +519,9 @@ def test_alg3(df, eps, global_lip, repeat):
     min_list = getMinRatio(time_list)
     max_list = getMaxRatio(time_list)
     avg_list = getAvgRatio(time_list)
-    print_row3(min_list, 'Min')
-    print_row3(max_list, 'Max')
-    print_row3(avg_list, 'Average')
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
 
     index = 0
     print('test.Index,PC_N,PI_N,QC_N,QI_N,PC_R,PI_R,QC_R,QI_R')
@@ -468,102 +535,124 @@ def test_alg3(df, eps, global_lip, repeat):
     min_list = getMinRatio(it_list)
     max_list = getMaxRatio(it_list)
     avg_list = getAvgRatio(it_list)
-    print_row3(min_list, 'Min')
-    print_row3(max_list, 'Max')
-    print_row3(avg_list, 'Average')
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
+
+
+def get_full_interval(intervals):
+    if len(intervals) == 0:
+        return 'No\ root'
+    else:
+        if isinstance(intervals[0], tuple):
+            return ival.Interval([intervals[0][0].x[0], intervals[-1][0].x[1]])
+        else:
+            return ival.Interval([intervals[0].x[0], intervals[-1].x[1]])
 
 
 def test_last(df, eps, repeat, global_lip=True):
     # print('test.Index,PC_N,PI_N,QC_N,QI_N,PC_R,PI_R,QC_R,QI_R')
     time_list = np.zeros((len(list(df.itertuples())), 9), dtype=float)
     it_list = np.zeros((len(list(df.itertuples())), 9), dtype=int)
+    full_interval_list = np.zeros((len(list(df.itertuples())), 9), dtype=ival.Interval)
     for num in range(0, repeat):
         i = 0
         for test in df.itertuples():
             # eps = ep * (test.b - test.a)
             it_list_row = np.zeros(9, dtype=int)
             time_list_row = np.zeros(9, dtype=float)
+            full_interval_row = np.zeros(9, dtype=ival.Interval)
+
             points_db[test.Index] = {'bnb2_pslint_points_list': []}
             prob = uvpr.UniVarProblem(test.Index, test.objective, test.a, test.b, test.min_f, test.min_x,
                                       lambda x: log_point(x, points_db[test.Index]['bnb2_pslint_points_list']), True)
 
             T1 = time.perf_counter()
-            Cas = sfzcp.cas(prob=prob, epsilon=eps * (test.b - test.a)).nsteps
+            Cas = sfzcp.cas(prob=prob, epsilon=eps * (test.b - test.a))
             T2 = time.perf_counter()
             time_Cas = (T2 - T1)
-            it_list_row[0] = Cas
+            it_list_row[0] = Cas.nsteps
+            full_interval_row[0] = get_full_interval(Cas.first_crossing_zero_point)
             time_list_row[0] += time_Cas / repeat * 1000
 
             T1 = time.perf_counter()
             PC_N = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=1,
-                                    reduction=0).nsteps
+                                    reduction=0)
             T2 = time.perf_counter()
             time_PC_N = (T2 - T1)
-            it_list_row[1] = PC_N
+            it_list_row[1] = PC_N.nsteps
+            full_interval_row[1] = get_full_interval(PC_N.first_crossing_zero_point)
             time_list_row[1] += time_PC_N / repeat * 1000
 
             T1 = time.perf_counter()
             PI_N = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=1,
-                                    reduction=0).nsteps
+                                    reduction=0)
             T2 = time.perf_counter()
             time_PI_N = (T2 - T1)
-            it_list_row[2] = PI_N
+            it_list_row[2] = PI_N.nsteps
+            full_interval_row[2] = get_full_interval(PI_N.first_crossing_zero_point)
             time_list_row[2] += time_PI_N / repeat * 1000
 
             T1 = time.perf_counter()
             QC_N = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=2,
-                                    reduction=0).nsteps
+                                    reduction=0)
             T2 = time.perf_counter()
             time_QC_N = (T2 - T1)
-            it_list_row[3] = QC_N
+            it_list_row[3] = QC_N.nsteps
+            full_interval_row[3] = get_full_interval(QC_N.first_crossing_zero_point)
             time_list_row[3] += time_QC_N / repeat * 1000
 
             T1 = time.perf_counter()
             QI_N = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=2,
-                                    reduction=0).nsteps
+                                    reduction=0)
             T2 = time.perf_counter()
             time_QI_N = (T2 - T1)
-            it_list_row[4] = QI_N
+            it_list_row[4] = QI_N.nsteps
+            full_interval_row[4] = get_full_interval(QI_N.first_crossing_zero_point)
             time_list_row[4] += time_QI_N / repeat * 1000
 
             T1 = time.perf_counter()
             PC_R = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=1,
-                                    reduction=1).nsteps
+                                    reduction=1)
             T2 = time.perf_counter()
             time_PC_R = (T2 - T1)
-            it_list_row[5] = PC_R
+            it_list_row[5] = PC_R.nsteps
+            full_interval_row[5] = get_full_interval(PC_R.first_crossing_zero_point)
             time_list_row[5] += time_PC_R / repeat * 1000
 
             T1 = time.perf_counter()
             PI_R = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=1,
-                                    reduction=1).nsteps
+                                    reduction=1)
             T2 = time.perf_counter()
             time_PI_R = (T2 - T1)
-            it_list_row[6] = PI_R
+            it_list_row[6] = PI_R.nsteps
+            full_interval_row[6] = get_full_interval(PI_R.first_crossing_zero_point)
             time_list_row[6] += time_PI_R / repeat * 1000
 
             T1 = time.perf_counter()
             QC_R = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=2,
-                                    reduction=1).nsteps
+                                    reduction=1)
             T2 = time.perf_counter()
             time_QC_R = (T2 - T1)
-            it_list_row[7] = QC_R
+            it_list_row[7] = QC_R.nsteps
+            full_interval_row[7] = get_full_interval(QC_R.first_crossing_zero_point)
             time_list_row[7] += time_QC_R / repeat * 1000
 
             T1 = time.perf_counter()
             QI_R = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=2,
-                                    reduction=1).nsteps
+                                    reduction=1)
             T2 = time.perf_counter()
             time_QI_R = (T2 - T1)
-            it_list_row[8] = QI_R
+            it_list_row[8] = QI_R.nsteps
+            full_interval_row[8] = get_full_interval(QI_R.first_crossing_zero_point)
             time_list_row[8] += time_QI_R / repeat * 1000
 
             # T1 = time.perf_counter()
@@ -575,6 +664,7 @@ def test_last(df, eps, repeat, global_lip=True):
             # time_list_row[8] += time_QI_R_L
 
             it_list[i] = it_list_row
+            full_interval_list[i] = full_interval_row
             time_list[i] += time_list_row
             i = i + 1
         # time_list.append(time_list_row)
@@ -601,16 +691,16 @@ def test_last(df, eps, repeat, global_lip=True):
     min = getMin(time_list)
     max = getMax(time_list)
     avg = getAvg(time_list)
-    print_row1(min, 'Min')
-    print_row1(max, 'Max')
-    print_row1(avg, 'Average')
+    print_row_f3(min, 'Min')
+    print_row_f3(max, 'Max')
+    print_row_f3(avg, 'Average')
 
     min_list = getMinRatio(time_list)
     max_list = getMaxRatio(time_list)
     avg_list = getAvgRatio(time_list)
-    print_row3(min_list, 'Min')
-    print_row3(max_list, 'Max')
-    print_row3(avg_list, 'Average')
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
 
     index = 0
     print('test.Index,IBB,PL_N,PI_N,QL_N,QI_N,PL_R,PI_R,QL_R,QI_R')
@@ -624,13 +714,41 @@ def test_last(df, eps, repeat, global_lip=True):
     min_it = getMin(it_list)
     max_it = getMax(it_list)
     avg_it = getAvg(it_list)
-    print_row2(min_it, 'Min')
-    print_row2(max_it, 'Max')
-    print_row3(avg_it, 'Average')
+    print_row_int(min_it, 'Min')
+    print_row_int(max_it, 'Max')
+    print_row_f1(avg_it, 'Average')
 
     min_list = getMinRatio(it_list)
     max_list = getMaxRatio(it_list)
     avg_list = getAvgRatio(it_list)
-    print_row3(min_list, 'Min')
-    print_row3(max_list, 'Max')
-    print_row3(avg_list, 'Average')
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
+
+    index = 0
+    print('test.Index,IBB,PL_N,PI_N,QL_N,QI_N,PL_R,PI_R,QL_R,QI_R')
+    for interval_row in full_interval_list:
+        index = index + 1
+        print("{} & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ \\\\".format(index,
+                                                                                              interval_row[0],
+                                                                                              interval_row[1],
+                                                                                              interval_row[2],
+                                                                                              interval_row[3],
+                                                                                              interval_row[4],
+                                                                                              interval_row[5],
+                                                                                              interval_row[6],
+                                                                                              interval_row[7],
+                                                                                              interval_row[8]))
+    min_interval_list = getMin(full_interval_list)
+    max_interval_list = getMax(full_interval_list)
+    avg_interval_list = getAvg(full_interval_list)
+    print_row_f5(min_interval_list, 'Min')
+    print_row_f5(max_interval_list, 'Max')
+    print_row_f5(avg_interval_list, 'Average')
+
+    # min_interval_list_r = getMinRatio(full_interval_list)
+    # max_interval_list_r = getMaxRatio(full_interval_list)
+    # avg_interval_list_r = getAvgRatio(full_interval_list)
+    # print_row3(min_interval_list_r, 'Min')
+    # print_row3(max_interval_list_r, 'Max')
+    # print_row3(avg_interval_list_r, 'Average')
