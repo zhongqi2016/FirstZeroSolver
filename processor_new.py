@@ -1,4 +1,3 @@
-from interval import Interval
 import psqe_bounds as psqe
 import psl_bounds as psl
 import sys
@@ -89,7 +88,7 @@ class ProcessorNew:
         lst = []
         obj = self.problem.objective
         if self.rec_x - sub_interval.x[0] <= self.eps:
-            self.res_list.append((Interval([sub_interval.x[0], self.rec_x]), 'certain'))
+            self.res_list.append((ival.Interval([sub_interval.x[0], self.rec_x]), 'certain'))
             self.running = False
             return lst
         width_of_interval = sub_interval.x[1] - sub_interval.x[0]
@@ -100,43 +99,38 @@ class ProcessorNew:
         left_end = lower_estimator.get_left_end()
 
         if left_end is not None:
+            assert (left_end >= sub_interval.x[0])
+            if width_of_interval <= self.eps:
+                self.res_list.append((ival.Interval([sub_interval.x[0], sub_interval.x[1]]), 'uncertain'))
+                return lst
             if self.reduction > 0:
-                if self.reduction == 1:
-                    if sub_interval.x[1] < self.rec_x:
-                        right_end = lower_estimator.get_right_end_under_bound()
-                    elif sub_interval.x[1] == self.rec_x:
-                        upper_estimator = self.compute_bounds(data, under=False)
-                        right_end = upper_estimator.get_right_end_upper_bound()
-                        if right_end > sub_interval.x[1]:
-                            right_end = sub_interval.x[1]
-                        self.rec_x = right_end
-                        if right_end - left_end < self.eps:
-                            self.res_list.append((Interval([left_end, right_end]), 'certain'))
-                            self.running = False
-                            return lst
+                if sub_interval.x[1] < self.rec_x:
+                    right_end = lower_estimator.get_right_end_under_bound()
                 else:
-                    right_end = None
-            elif self.reduction == 0:
+                    upper_estimator = self.compute_bounds(data, under=False)
+                    right_end = upper_estimator.get_right_end_upper_bound()
+                    if right_end >= sub_interval.x[1]:
+                        right_end = sub_interval.x[1]
+                    else:
+                        self.rec_x = right_end
+            else:
                 left_end = sub_interval.x[0]
                 right_end = sub_interval.x[1]
-            split_point = left_end + (right_end - left_end) / 2
-            if sub_interval.width() < self.eps:
-                self.res_list.append((sub_interval, 'uncertain'))
-            else:
-                new_width = right_end - left_end
-                if new_width / width_of_interval > 0.7:
-                    sub_1 = ival.Interval([left_end, split_point])
-                    if obj(sub_1.x[1]) <= 0:
-                        self.rec_x = sub_1.x[1]
-                    else:
-                        data2 = ProcData(sub_interval=ival.Interval([split_point, right_end]),
-                                         lip=copy.deepcopy(data.lip))
-                        lst.append(data2)
 
-                    data.sub_interval = sub_1
-                    lst.append(data)
+            new_width = right_end - left_end
+            if new_width / width_of_interval > 0.7:
+                split_point = left_end + new_width / 2
+                sub_1 = ival.Interval([left_end, split_point])
+                if obj(sub_1.x[1]) <= 0:
+                    self.rec_x = sub_1.x[1]
                 else:
-                    data.sub_interval.x[0] = left_end
-                    data.sub_interval.x[1] = right_end
-                    lst.append(data)
+                    data2 = ProcData(sub_interval=ival.Interval([split_point, right_end]),
+                                     lip=copy.deepcopy(data.lip))
+                    lst.append(data2)
+                data.sub_interval = sub_1
+                lst.append(data)
+            else:
+                data.sub_interval.x[0] = left_end
+                data.sub_interval.x[1] = right_end
+                lst.append(data)
         return lst
