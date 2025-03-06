@@ -24,21 +24,25 @@ class PSL_Bounds:
         self.b = b
         self.under = under
         if under:
-            self.alp = alp
-            self.bet = bet
+            self.gam = alp
+            self.lam = bet
             self.fa = fa
             self.fb = fb
         else:
-            self.alp = -bet
-            self.bet = -alp
+            self.gam = -bet
+            self.lam = -alp
             self.fa = -fa
             self.fb = -fb
 
-        self.c = (self.fa - self.fb + self.bet * self.b - self.alp * self.a) / (self.bet - self.alp)
+        self.c = (self.fa - self.fb + self.lam * self.b - self.gam * self.a) / (self.lam - self.gam)
+        self.u = (self.lam * self.fa - self.gam * self.fb + self.lam * self.gam * (self.b - self.a)) / (
+                self.lam - self.gam)
+        if not self.under:
+            self.u = -self.u
 
     def __repr__(self):
         return "Piecewise linear estimator " + "a = " + str(self.a) + ", b = " + str(self.b) + ", c = " + str(
-            self.c) + ", alp = " + str(self.alp) + ", bet = " + str(self.bet) \
+            self.c) + ", alp = " + str(self.gam) + ", bet = " + str(self.lam) \
             + ", fa = " + str(self.fa) + ", fb = " + str(self.fb)
 
     def estimator(self, x):
@@ -50,9 +54,9 @@ class PSL_Bounds:
         Returns: underestimator's value
         """
         if x <= self.c:
-            res = self.fa + self.alp * (x - self.a)
+            res = self.fa + self.gam * (x - self.a)
         else:
-            res = self.fb + self.bet * (x - self.b)
+            res = self.fb + self.lam * (x - self.b)
         return res
 
     def get_fb(self):
@@ -67,10 +71,10 @@ class PSL_Bounds:
         """
         record_x = None
         record_v = None
-        if self.alp >= 0:
+        if self.gam >= 0:
             record_x = self.a
             record_v = self.fa
-        elif self.bet <= 0:
+        elif self.lam <= 0:
             record_x = self.b
             record_v = self.fb
         else:
@@ -91,9 +95,38 @@ class PSL_Bounds:
             get the first root of under estimator
         """
         assert self.under
-        if self.alp >= 0:
+        if self.u <= 0:
+            return self.a - self.fa / self.gam
+        elif self.u > 0 and self.fb <= 0:
+            return self.b - self.fb / self.lam
+        else:
             return None
-        root_of_left_part = self.a - self.fa / self.alp
+
+    def get_right_end_upper_bound(self):
+        """
+            get the first root of over estimator
+        """
+        assert not self.under
+        if self.u > 0:
+            return self.b - self.fb / self.lam
+        else:
+            return self.a - self.fa / self.gam
+
+    def get_right_end_under_bound(self):
+        """
+            get the last root of under estimator
+        """
+        assert self.u <= 0
+        return self.b - self.fb / self.lam
+
+    def get_left_end_old(self):
+        """
+            get the first root of under estimator
+        """
+        assert self.under
+        if self.gam >= 0:
+            return None
+        root_of_left_part = self.a - self.fa / self.gam
         if math.isnan(self.c):
             if root_of_left_part <= self.b:
                 return root_of_left_part
@@ -101,39 +134,39 @@ class PSL_Bounds:
                 return None
         if root_of_left_part <= self.c:
             return root_of_left_part
-        if self.bet < 0:
-            root_of_right_part = self.b - self.fb / self.bet
+        if self.lam < 0:
+            root_of_right_part = self.b - self.fb / self.lam
             if root_of_right_part <= self.b:
                 return root_of_right_part
         else:
             return None
 
-    def get_right_end_upper_bound(self):
+    def get_right_end_upper_bound_old(self):
         """
             get the last root of over estimator
         """
         assert not self.under
-        if self.alp > 0:
-            root_of_left_part = self.a - self.fa / self.alp
+        if self.gam > 0:
+            root_of_left_part = self.a - self.fa / self.gam
             if root_of_left_part <= self.c:
                 return root_of_left_part
-        root_of_right_part = self.b - self.fb / self.bet
+        root_of_right_part = self.b - self.fb / self.lam
         if self.c <= root_of_right_part <= self.b:
             return root_of_right_part
         else:
             return self.b
 
-    def get_right_end_under_bound(self):
+    def get_right_end_under_bound_old(self):
         """
             get the last root of under estimator
         """
         assert self.under
-        if self.bet < 0:
+        if self.lam < 0:
             return None
-        root_of_right_part = self.b - self.fb / self.bet
+        root_of_right_part = self.b - self.fb / self.lam
         if root_of_right_part >= self.c:
             return root_of_right_part
-        root_of_left_part = self.a - self.fa / self.alp
+        root_of_left_part = self.a - self.fa / self.gam
         if root_of_left_part <= self.c:
             return root_of_left_part
         return None

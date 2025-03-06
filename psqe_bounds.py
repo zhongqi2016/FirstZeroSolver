@@ -46,6 +46,10 @@ class PSQE_Bounds:
                 self.fa - self.fb + b * self.dfb - a * self.dfa + self.alp * (a ** 2 - b ** 2) / 2) / (
                          self.dfb - self.dfa - self.alp * (b - a))
         self.d = self.c + delt
+
+        self.qc = self.fa + self.dfa * (self.c - self.a) + self.alp / 2 * (self.c - self.a) ** 2
+        self.qd = self.fb + self.dfb * (self.d - self.b) + self.alp / 2 * (self.d - self.b) ** 2
+
         if self.d > self.b:
             print('error d>b')
             print('a=', self.a, 'b=', self.b, 'c=', self.c, 'delt=', delt, 'fa=', self.fa, 'fb=', self.fb, 'alp=',
@@ -56,6 +60,15 @@ class PSQE_Bounds:
             self.d) + ", alp = " + str(self.alp) + ", bet = " + str(self.bet) + ", fa = " + str(
             self.fa) + ", fb = " + str(self.fb) + ", dfa = " + str(self.dfa) + ", dfb = " + str(self.dfb)
 
+    def q1(self, x: float):
+        return self.fa + self.dfa * (x - self.a) + self.alp / 2 * (x - self.a) ** 2
+
+    def q2(self, x: float):
+        return self.qc + (self.dfa + self.alp * (self.c - self.a)) * (x - self.c) + self.bet / 2 * (x - self.c) ** 2
+
+    def q3(self, x: float):
+        return self.fb + self.dfb * (x - self.b) + 0.5 * self.alp * (x - self.b) ** 2
+
     def estimator(self, x: float):
         """
         The piecewise quadratic underestimator
@@ -64,17 +77,25 @@ class PSQE_Bounds:
 
         Returns: underestimator's value
         """
+        assert self.a <= x <= self.b
         if x <= self.c:
-            res = self.fa + self.dfa * (x - self.a) + 0.5 * self.alp * (x - self.a) ** 2
+            return self.q1(x)
         elif x < self.d:
-            res = self.fa + self.dfa * (self.c - self.a) + 0.5 * self.alp * (self.c - self.a) ** 2 + (
-                    self.dfa + self.alp * (self.c - self.a)) * (x - self.c) + 0.5 * self.bet * (x - self.c) ** 2
+            return self.q2(x)
         else:
-            res = self.fb + self.dfb * (x - self.b) + 0.5 * self.alp * (x - self.b) ** 2
-        return res
+            return self.q3(x)
 
     def nestimator(self, x):
         return -self.estimator(x)
+
+    def dq1(self, x: float):
+        return self.dfa + self.alp * (x - self.a)
+
+    def dq2(self, x: float):
+        return self.dfa + self.alp * (self.c - self.a) + self.bet * (x - self.c)
+
+    def dq3(self, x: float):
+        return self.dfb + self.alp * (x - self.b)
 
     def estimators_derivative(self, x):
         """
@@ -85,11 +106,11 @@ class PSQE_Bounds:
         Returns: underestimator's derivative value
         """
         if x < self.c:
-            res = self.dfa + self.alp * (x - self.a)
+            res = self.dq1(x)
         elif x < self.d:
-            res = self.dfa + self.alp * (self.c - self.a) + self.bet * (x - self.c)
+            res = self.dq2(x)
         else:
-            res = self.dfb + self.alp * (x - self.b)
+            res = self.dq3(x)
         # if self.under:
         return res
         # else:
@@ -160,7 +181,7 @@ class PSQE_Bounds:
         return self.dfa ** 2 - 2 * self.alp * self.fa
 
     def delta_second(self):
-        c = self.fa + self.dfa * (self.c - self.a) + self.alp / 2 * (self.c - self.a) ** 2
+        c = self.qc
         b = self.dfa + self.alp * (self.c - self.a)
         return b ** 2 - 2 * self.bet * c
 
@@ -186,6 +207,38 @@ class PSQE_Bounds:
         return self.b + (-self.dfb + d3 ** 0.5) / self.alp
 
     def get_left_end(self):
+        d1 = self.delta_first()
+        if self.qc <= 0:
+            if self.alp == 0:
+                return self.a - self.fa / self.dfa
+            else:
+                return self.root_first_left(d1)
+        dqc = self.dq1(self.c)
+        if self.dfa < 0 and dqc > 0 and d1 >= 0:
+            return self.root_first_left(d1)
+
+        d2 = self.delta_second()
+        if self.qd <= 0:
+            if self.bet == 0:
+                return self.c - self.qc / (self.dfa + self.alp * (self.c - self.a))
+            else:
+                return self.root_second_left(d2)
+        dqd = self.dq3(self.d)
+        if dqc < 0 and dqd > 0 and d2 >= 0:
+            return self.root_second_left(d2)
+
+        d3 = self.delta_third()
+        if self.fb <= 0:
+            if self.alp == 0:
+                return self.b - self.fb / self.dfb
+            else:
+                return self.root_third_left(d3)
+        elif dqd < 0 and self.dfb > 0 and d3 >= 0:
+            return self.root_third_left(d3)
+        else:
+            return None
+
+    def get_left_end_old(self):
         """
             get the first root of under estimator
         """
@@ -216,6 +269,36 @@ class PSQE_Bounds:
         return None
 
     def get_right_end_upper_bound(self):
+        assert not self.under
+        d1 = self.delta_first()
+        if self.qc >= 0:
+            if self.alp == 0:
+                return self.a - self.fa / self.dfa
+            else:
+                return self.root_first_right(d1)
+        dqc = self.dq1(self.c)
+        if self.dfa > 0 and dqc < 0 and d1 >= 0:
+            return self.root_first_right(d1)
+        d2 = self.delta_second()
+        if self.qd >= 0:
+            if self.bet == 0:
+                return self.c - self.qc / (self.dfa + self.alp * (self.c - self.a))
+            else:
+                return self.root_second_right(d2)
+        dqd = self.dq3(self.d)
+        if dqc > 0 and dqd < 0 and d2 >= 0:
+            return self.root_second_right(d2)
+        d3 = self.delta_third()
+        if self.fb >= 0:
+            if self.alp == 0:
+                return self.b - self.fb / self.dfb
+            else:
+                return self.root_third_right(d3)
+        elif dqd > 0 and self.dfb < 0 and d3 >= 0:
+            return self.root_third_right(d3)
+        return self.b
+
+    def get_right_end_upper_bound_old(self):
         """
             get the last root of over estimator
         """
@@ -247,6 +330,38 @@ class PSQE_Bounds:
         return self.b
 
     def get_right_end_under_bound(self):
+        d3 = self.delta_third()
+        if self.qd <= 0:
+            if self.alp == 0:
+                return self.b - self.fb / self.dfb
+            else:
+                return self.root_third_right(d3)
+        dqd = self.dq3(self.d)
+        if dqd < 0 and self.dfb > 0 and d3 >= 0:
+            return self.root_third_right(d3)
+
+        d2 = self.delta_second()
+        if self.qc <= 0:
+            if self.bet == 0:
+                return self.c - self.qc / (self.dfa + self.alp * (self.c - self.a))
+            else:
+                return self.root_second_right(d2)
+        dqc = self.dq1(self.c)
+        if dqc < 0 and dqd > 0 and d2 >= 0:
+            return self.root_second_right(d2)
+
+        d1 = self.delta_first()
+        if self.fa <= 0:
+            if self.alp == 0:
+                return self.a - self.fa / self.dfa
+            else:
+                return self.root_first_right(d1)
+        if self.dfa < 0 and dqc > 0 and d1 >= 0:
+            return self.root_first_right(d1)
+
+        return None
+
+    def get_right_end_under_bound_old(self):
         """
             get the last root of under estimator
         """

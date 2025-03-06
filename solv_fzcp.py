@@ -34,7 +34,11 @@ def cas(prob, max_steps=sys.maxsize, epsilon=1e-2, known_record=False):
 
 def new_method(prob, symm=True, max_steps=sys.maxsize, epsilon=1e-2, global_lipschitz_interval=False,
                known_record=False, estimator=2, reduction=1):
-    psp = newproc.ProcessorNew(rec_v=get_initial_recval(prob, known_record), rec_x=prob.b, problem=prob,
+    if prob.objective(prob.b) < 0:
+        rec_x = prob.b
+    else:
+        rec_x = prob.b + 0.1
+    psp = newproc.ProcessorNew(rec_v=get_initial_recval(prob, known_record), rec_x=rec_x, problem=prob,
                                eps=epsilon, global_lipint=global_lipschitz_interval, use_symm_lipint=symm,
                                estimator=estimator, reduction=reduction)
     sl = []
