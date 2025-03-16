@@ -57,13 +57,11 @@ def plot_proc(estimator: Estimator, sym: bool, problem: uvpr.UniVarProblem, num_
     step = (problem.b - problem.a) / 1000.
     ta = np.arange(problem.a, problem.b, step)
     num_points = len(ta)
-    le = problem.a
-    re = problem.b
-    lip1, lip2 = update_lipschitz(le, re, estimator, sym, problem.df, problem.ddf)
+    lip1, lip2 = update_lipschitz(problem.a, problem.b, estimator, sym, problem.df, problem.ddf)
     work_list = [(problem.a, problem.b, 0, 0)]
     fig, ax = plt.subplots()
     i = 0
-    record_x = re + 1
+    record_x = problem.b + 1
     while len(work_list) != 0:
         if i >= num_iterations - 1:
             break
@@ -119,21 +117,31 @@ def plot_proc(estimator: Estimator, sym: bool, problem: uvpr.UniVarProblem, num_
         ax.plot(ta, ft_under, 'b-')
         ax.plot(ta, ft_over, 'g-')
         if x1:
-            if (x2 - x1) / (ore - ole) < 0.7:
-                work_list.append((x1, x2, lb, ub))
+            if reduction:
+                if (x2 - x1) / (ore - ole) < 0.7:
+                    work_list.append((x1, x2, lb, ub))
+                else:
+                    mid = x1 + (x2 - x1) / 2
+                    if problem.objective(mid) > 0:
+                        work_list.append((mid, x2, lb, ub))
+                    else:
+                        record_x = mid
+                        draw_rect(ax, mid, x2, lb, ub, 'green')
+                        draw_edge(ax, mid, x2, lb, ub)
+                    work_list.append((x1, mid, lb, ub))
+                draw_rect(ax, ole, x1, lb, ub, 'yellow')
+                draw_rect(ax, x2, ore, lb, ub, 'yellow')
+                draw_edge(ax, x1, x2, lb, ub)
+                draw_edge(ax, ole, ore, lb, ub)
             else:
-                mid = x1 + (x2 - x1) / 2
+                mid = ole + (ore - ole) / 2
                 if problem.objective(mid) > 0:
-                    work_list.append((mid, x2, lb, ub))
+                    work_list.append((mid, ore, lb, ub))
                 else:
                     record_x = mid
-                    draw_rect(ax, mid, x2, lb, ub, 'green')
-                    draw_edge(ax, mid, x2, lb, ub)
-                work_list.append((x1, mid, lb, ub))
-            draw_rect(ax, ole, x1, lb, ub, 'yellow')
-            draw_rect(ax, x2, ore, lb, ub, 'yellow')
-            draw_edge(ax, x1, x2, lb, ub)
-            draw_edge(ax, ole, ore, lb, ub)
+                    draw_rect(ax, mid, ore, lb, ub, 'green')
+                    draw_edge(ax, mid, ore, lb, ub)
+                work_list.append((ole, mid, lb, ub))
         else:
             draw_rect(ax, ole, ore, lb, ub, 'blue')
             draw_edge(ax, ole, ore, lb, ub)
