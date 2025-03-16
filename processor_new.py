@@ -17,7 +17,7 @@ class ProcData:
         The constructor
         Args:
             sub_interval: the subproblem's interval
-            split_point: the point to split interval
+            lip: the Lipschitz interval
         """
         self.sub_interval = sub_interval
         self.lip = lip

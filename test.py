@@ -47,23 +47,24 @@ def getMax(matrix):
 
 def getMaxRatio(matrix):
     max_values = []
-    end = len(matrix[0]) - 1
-    if isinstance(matrix[0][0], ival.Interval):
-        for j in range(len(matrix[0])):
-            max_value = 0
-            for i in range(len(matrix)):
-                if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
-                    continue
-                if matrix[i][j].width() / matrix[i][end].width() > max_value:
-                    max_value = matrix[i][j].width() / matrix[i][end].width()
-            max_values.append(max_value)
-    else:
-        for j in range(len(matrix[0])):
-            max_value = matrix[0][j] / matrix[0][end]
-            for i in range(len(matrix)):
-                if matrix[i][j] / matrix[i][end] > max_value:
-                    max_value = matrix[i][j] / matrix[i][end]
-            max_values.append(max_value)
+    # end = len(matrix[0]) - 1
+    end = 0
+    # if isinstance(matrix[0][0], ival.Interval):
+    #     for j in range(len(matrix[0])):
+    #         max_value = 0
+    #         for i in range(len(matrix)):
+    #             if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
+    #                 continue
+    #             if matrix[i][j].width() / matrix[i][end].width() > max_value:
+    #                 max_value = matrix[i][j].width() / matrix[i][end].width()
+    #         max_values.append(max_value)
+    # else:
+    for j in range(len(matrix[0])):
+        max_value = matrix[0][end] / matrix[0][j]
+        for i in range(len(matrix)):
+            if matrix[i][end] / matrix[i][j] > max_value:
+                max_value = matrix[i][end] / matrix[i][j]
+        max_values.append(max_value)
     return max_values
 
 
@@ -103,25 +104,26 @@ def getMin(matrix):
 
 def getMinRatio(matrix):
     min_values = []
-    end = len(matrix[0]) - 1
-    if isinstance(matrix[0][0], ival.Interval):
-        for j in range(len(matrix[0])):
-            if isinstance(matrix[0][j], str) or isinstance(matrix[0][end], str):
-                continue
-            min_value = matrix[0][j].width() / matrix[0][end].width()
-            for i in range(len(matrix)):
-                if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
-                    continue
-                if matrix[i][j].width() / matrix[i][end].width() < min_value:
-                    min_value = matrix[i][j].width() / matrix[i][end].width()
-            min_values.append(min_value)
-    else:
-        for j in range(len(matrix[0])):
-            min_value = matrix[0][j] / matrix[0][end]
-            for i in range(len(matrix)):
-                if matrix[i][j] / matrix[i][end] < min_value:
-                    min_value = matrix[i][j] / matrix[i][end]
-            min_values.append(min_value)
+    # end = len(matrix[0]) - 1
+    end = 0
+    # if isinstance(matrix[0][0], ival.Interval):
+    #     for j in range(len(matrix[0])):
+    #         if isinstance(matrix[0][j], str) or isinstance(matrix[0][end], str):
+    #             continue
+    #         min_value = matrix[0][j].width() / matrix[0][end].width()
+    #         for i in range(len(matrix)):
+    #             if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
+    #                 continue
+    #             if matrix[i][j].width() / matrix[i][end].width() < min_value:
+    #                 min_value = matrix[i][j].width() / matrix[i][end].width()
+    #         min_values.append(min_value)
+    # else:
+    for j in range(len(matrix[0])):
+        min_value = matrix[0][end] / matrix[0][j]
+        for i in range(len(matrix)):
+            if matrix[i][end] / matrix[i][j] < min_value:
+                min_value = matrix[i][end] / matrix[i][j]
+        min_values.append(min_value)
     return min_values
 
 
@@ -159,25 +161,26 @@ def getAvg(matrix):
 
 def getAvgRatio(matrix):
     avg_values = []
-    end = len(matrix[0]) - 1
-    if isinstance(matrix[0][0], ival.Interval):
-        for j in range(len(matrix[0])):
-            sum_value = 0
-            count = 0
-            for i in range(len(matrix)):
-                if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
-                    continue
-                count += 1
-                sum_value += matrix[i][j].width() / matrix[i][end].width()
-            avg_value = sum_value / count
-            avg_values.append(avg_value)
-    else:
-        for j in range(len(matrix[0])):
-            sum_value = 0
-            for i in range(len(matrix)):
-                sum_value += matrix[i][j] / matrix[i][end]
-            avg_value = sum_value / len(matrix)
-            avg_values.append(avg_value)
+    # end = len(matrix[0]) - 1
+    end = 0
+    # if isinstance(matrix[0][0], ival.Interval):
+    #     for j in range(len(matrix[0])):
+    #         sum_value = 0
+    #         count = 0
+    #         for i in range(len(matrix)):
+    #             if isinstance(matrix[i][j], str) or isinstance(matrix[i][end], str):
+    #                 continue
+    #             count += 1
+    #             sum_value += matrix[i][j].width() / matrix[i][end].width()
+    #         avg_value = sum_value / count
+    #         avg_values.append(avg_value)
+    # else:
+    for j in range(len(matrix[0])):
+        sum_value = 0
+        for i in range(len(matrix)):
+            sum_value += matrix[i][end] / matrix[i][j]
+        avg_value = sum_value / len(matrix)
+        avg_values.append(avg_value)
     return avg_values
 
 
