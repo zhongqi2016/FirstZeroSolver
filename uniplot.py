@@ -4,15 +4,21 @@ import numpy as np
 import psqe_bounds as pq
 import psl_bounds as psl
 import matplotlib.pyplot as plt
+from processor_new import Estimator
 
 
-def update_lipschitz(a, b, estimator: int, sym: bool, df, ddf):
+def update_lipschitz(a, b, estimator: Estimator, sym: bool, df, ddf):
     """
     Args:
-        data: data of sub_interval
+        a: left end of current interval
+        b: right end of current interval
+        estimator: type of estimator(PSL or PSQE)
+        sym: symmetry of Lipschitz interval
+        df: derivative of objective function
+        ddf: second derivative of objective function
     """
     current_interval = ival.Interval([a, b])
-    if estimator == 1:
+    if estimator == Estimator.PSL:
         lip = df(current_interval)
     else:
         lip = ddf(current_interval)
@@ -33,16 +39,28 @@ def draw_edge(ax, x1, x2, y1, y2):
     ax.add_patch(rect)
 
 
-def plot_proc(estimator: int, sym: bool, problem: uvpr.UniVarProblem, num_iterations: int, reduction: bool, eps,
-              global_lip=False):
+def plot_proc(estimator: Estimator, sym: bool, problem: uvpr.UniVarProblem, num_iterations: int, reduction: bool,
+              eps: float, global_lip=False):
+    """
+    plot the process of branching and reduction
+    yellow rectangles: eliminated by reduction
+    blue rectangles: eliminated by under bound
+    green rectangles: eliminated by record point
+    :param estimator: type of estimator(PSL or PSQE)
+    :param sym: symmetry of Lipschitz interval
+    :param problem: uni-variate problem to solve
+    :param num_iterations: maximal number of iterations to solve the problem
+    :param reduction: reduction or not
+    :param eps: tolerance
+    :param global_lip: use the global Lipschitz approach or not
+    """
     step = (problem.b - problem.a) / 1000.
     ta = np.arange(problem.a, problem.b, step)
     num_points = len(ta)
     le = problem.a
     re = problem.b
     lip1, lip2 = update_lipschitz(le, re, estimator, sym, problem.df, problem.ddf)
-    work_list = []
-    work_list.append((problem.a, problem.b, 0, 0))
+    work_list = [(problem.a, problem.b, 0, 0)]
     fig, ax = plt.subplots()
     i = 0
     record_x = re + 1
@@ -60,46 +78,46 @@ def plot_proc(estimator: int, sym: bool, problem: uvpr.UniVarProblem, num_iterat
             continue
         if not global_lip:
             lip1, lip2 = update_lipschitz(x1, x2, estimator, sym, problem.df, problem.ddf)
-        if estimator == 1:
-            estim_int = psl.PSL_Bounds(x1, x2, lip1, lip2, problem.objective(x1), problem.objective(x2), True)
-            estim_int_ob = psl.PSL_Bounds(x1, x2, lip1, lip2, problem.objective(x1), problem.objective(x2), False)
+        if estimator == Estimator.PSL:
+            under_estimator = psl.PSL_Bounds(x1, x2, lip1, lip2, problem.objective(x1), problem.objective(x2), True)
+            over_estimator = psl.PSL_Bounds(x1, x2, lip1, lip2, problem.objective(x1), problem.objective(x2), False)
         else:
-            estim_int = pq.PSQE_Bounds(x1, x2, lip1, lip2, problem.objective(x1), problem.objective(x2), problem.df(x1),
-                                       problem.df(x2), True)
-            estim_int_ob = pq.PSQE_Bounds(x1, x2, lip1, lip2, problem.objective(x1), problem.objective(x2),
-                                          problem.df(x1), problem.df(x2), False)
-        x1 = estim_int.get_left_end()
+            under_estimator = pq.PSQE_Bounds(x1, x2, lip1, lip2, problem.objective(x1), problem.objective(x2),
+                                             problem.df(x1), problem.df(x2), True)
+            over_estimator = pq.PSQE_Bounds(x1, x2, lip1, lip2, problem.objective(x1), problem.objective(x2),
+                                            problem.df(x1), problem.df(x2), False)
+        x1 = under_estimator.get_left_end()
         check_upper_bound = False
         if x1:
             if reduction:
                 if problem.objective(x2) < 0:
                     check_upper_bound = True
-                    x2 = estim_int_ob.get_right_end_upper_bound()
+                    x2 = over_estimator.get_right_end_upper_bound()
                 else:
-                    x2 = estim_int.get_right_end_under_bound()
+                    x2 = under_estimator.get_right_end_under_bound()
 
-        f1 = estim_int.estimator
-        f2 = estim_int_ob.nestimator
+        f1 = under_estimator.estimator
+        f2 = over_estimator.nestimator
 
         ub = problem.objective(ole)
         lb = ub
-        fta1 = np.empty(num_points)
-        fta2 = np.empty(num_points)
+        ft_under = np.empty(num_points)
+        ft_over = np.empty(num_points)
         for j in range(num_points):
             if ole <= ta[j] <= ore:
-                fta1[j] = f1(ta[j]) - 0.05
-                lb = min(lb, fta1[j])
+                ft_under[j] = f1(ta[j]) - 0.05
+                lb = min(lb, ft_under[j])
                 if check_upper_bound:
-                    fta2[j] = f2(ta[j]) + 0.05
-                    ub = max(ub, fta2[j], problem.objective(ta[j]))
+                    ft_over[j] = f2(ta[j]) + 0.05
+                    ub = max(ub, ft_over[j], problem.objective(ta[j]))
                 else:
-                    fta2[j] = None
+                    ft_over[j] = None
                     ub = max(ub, problem.objective(ta[j]))
             else:
-                fta1[j] = None
-                fta2[j] = None
-        ax.plot(ta, fta1, 'b-')
-        ax.plot(ta, fta2, 'g-')
+                ft_under[j] = None
+                ft_over[j] = None
+        ax.plot(ta, ft_under, 'b-')
+        ax.plot(ta, ft_over, 'g-')
         if x1:
             if (x2 - x1) / (ore - ole) < 0.7:
                 work_list.append((x1, x2, lb, ub))

@@ -1,10 +1,18 @@
 import psqe_bounds as psqe
 import psl_bounds as psl
-import sys
 import copy
+from enum import Enum, auto
 
-sys.path.append("..")
 import interval as ival
+
+
+class Estimator(Enum):
+    """
+        LINEAR: Piece-wise Linear Estimator of Piyavksii;
+        QUADRATIC: Piece-wise Smoothy Quadratic Estimator
+    """
+    PSL = 1
+    PSQE = 2
 
 
 class ProcData:
@@ -25,8 +33,8 @@ class ProcData:
 
 class ProcessorNew:
 
-    def __init__(self, rec_v, rec_x, problem, eps, global_lipint=False, use_symm_lipint=False, estimator=2,
-                 reduction=1):
+    def __init__(self, rec_v, rec_x, problem, eps, global_lipint=False, use_symm_lipint=False,
+                 estimator=Estimator.PSQE, reduction=True):
         """
         Initializes processor
         Args:
@@ -36,7 +44,7 @@ class ProcessorNew:
             eps: tolerance
             global_lipint: if True use global Lipschitz constant computed for the whole interval
             use_symm_lipint: if True use [-L,L], where L = max(|a|,|b|)
-            estimator:estimator==1 -> Algorithm Piyavksii, estimator==2 -> PSQE
+            estimator:estimator==LINEAR -> Algorithm Piyavksii, estimator==QUADRATIC -> Piece-wise Smoothy Quadratic Estimator
         """
         self.res_list = []
         self.use_symm_lipint = use_symm_lipint
@@ -56,7 +64,7 @@ class ProcessorNew:
         Args:
             data: data of sub_interval
         """
-        if self.estimator == 1:
+        if self.estimator == Estimator.PSL:
             data.lip = self.problem.df(data.sub_interval)
             if self.use_symm_lipint:
                 L = max(-data.lip.x[0], data.lip.x[1])
@@ -70,7 +78,7 @@ class ProcessorNew:
     def compute_bounds(self, data: ProcData, under: bool):
         a = data.sub_interval.x[0]
         b = data.sub_interval.x[1]
-        if self.estimator == 1:
+        if self.estimator == Estimator.PSL:
             return psl.PSL_Bounds(a, b, data.lip.x[0], data.lip.x[1], self.problem.objective(a),
                                   self.problem.objective(b), under)
         else:
@@ -103,7 +111,7 @@ class ProcessorNew:
             if width_of_interval <= self.eps:
                 self.res_list.append((ival.Interval([sub_interval.x[0], sub_interval.x[1]]), 'uncertain'))
                 return lst
-            if self.reduction > 0:
+            if self.reduction:
                 if sub_interval.x[1] < self.rec_x:
                     right_end = lower_estimator.get_right_end_under_bound()
                 else:

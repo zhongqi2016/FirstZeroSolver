@@ -33,7 +33,7 @@ def cas(prob, max_steps=sys.maxsize, epsilon=1e-2, known_record=False):
 
 
 def new_method(prob, symm=True, max_steps=sys.maxsize, epsilon=1e-2, global_lipschitz_interval=False,
-               known_record=False, estimator=2, reduction=1):
+               known_record=False, estimator=newproc.Estimator.PSQE, reduction=True):
     if prob.objective(prob.b) < 0:
         rec_x = prob.b
     else:
