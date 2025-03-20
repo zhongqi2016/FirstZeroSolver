@@ -196,7 +196,7 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
 
         ax = axes[i // cols, i % cols]
         ax.plot(ta, fta, 'r-', linewidth=linewidth)
-        ax.axhline(y=0, linestyle='--', color='black',linewidth=linewidth)
+        ax.axhline(y=0, linestyle='--', color='black', linewidth=linewidth)
         if x1 >= record_x:
             rect_list.append((ole, ore, lb, ub, 'green'))
             rect_list.append((ole, ore, lb, ub, 'none'))
@@ -243,6 +243,8 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
                 ft_over[j] = None
         ax.plot(ta, ft_under, 'b-', linewidth=linewidth)
         ax.plot(ta, ft_over, 'g-', linewidth=linewidth)
+        for down, up, left, right in work_list:
+            draw_rect(ax, down, up, left, right, 'none')
         if x1:
             if reduction:
                 if (x2 - x1) / (ore - ole) < 0.7:
@@ -275,8 +277,8 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
             rect_list.append((ole, ore, lb, ub, 'blue'))
             rect_list.append((ole, ore, lb, ub, 'none'))
         draw_rect(ax, ole, ore, lb, ub, 'none')
+        for down, up, left, right, color in rect_list:
+            draw_rect(ax, down, up, left, right, color)
         i += 1
-        for x1, x2, lb, ub, color in rect_list:
-            draw_rect(ax, x1, x2, lb, ub, color)
     plt.show()
     # plt.savefig('./process_reduction.png', dpi=500)
