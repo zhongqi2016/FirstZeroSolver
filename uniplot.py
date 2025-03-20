@@ -196,7 +196,7 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
 
         ax = axes[i // cols, i % cols]
         ax.plot(ta, fta, 'r-', linewidth=linewidth)
-        ax.axhline(y=0, linestyle='--', color='black')
+        ax.axhline(y=0, linestyle='--', color='black',linewidth=linewidth)
         if x1 >= record_x:
             rect_list.append((ole, ore, lb, ub, 'green'))
             rect_list.append((ole, ore, lb, ub, 'none'))
@@ -258,8 +258,10 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
                     work_list.append((x1, mid, lb, ub))
                 rect_list.append((ole, x1, lb, ub, 'yellow'))
                 rect_list.append((x2, ore, lb, ub, 'yellow'))
-                rect_list.append((x1, x2, lb, ub, 'none'))
-                rect_list.append((ole, ore, lb, ub, 'none'))
+                rect_list.append((ole, x1, lb, ub, 'none'))
+                rect_list.append((x2, ore, lb, ub, 'none'))
+                # rect_list.append((x1, x2, lb, ub, 'none'))
+                # rect_list.append((ole, ore, lb, ub, 'none'))
             else:
                 mid = ole + (ore - ole) / 2
                 if problem.objective(mid) > 0:
@@ -272,6 +274,7 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
         else:
             rect_list.append((ole, ore, lb, ub, 'blue'))
             rect_list.append((ole, ore, lb, ub, 'none'))
+        draw_rect(ax, ole, ore, lb, ub, 'none')
         i += 1
         for x1, x2, lb, ub, color in rect_list:
             draw_rect(ax, x1, x2, lb, ub, color)
