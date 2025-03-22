@@ -185,6 +185,8 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
     i = 0
     record_x = problem.b + 1
     rect_list = []
+    lb_edge = 0
+    ub_edge = 0
     while len(work_list) != 0:
         if i >= num_iterations:
             break
@@ -241,6 +243,8 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
             else:
                 ft_under[j] = None
                 ft_over[j] = None
+        lb_edge = min(lb_edge, lb)
+        ub_edge = max(ub_edge, ub)
         ax.plot(ta, ft_under, 'b-', linewidth=linewidth)
         ax.plot(ta, ft_over, 'g-', linewidth=linewidth)
         for down, up, left, right in work_list:
@@ -280,5 +284,10 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
         for down, up, left, right, color in rect_list:
             draw_rect(ax, down, up, left, right, color)
         i += 1
+
+    d = 1
+    for i in range(num_iterations):
+        ax = axes[i // cols, i % cols]
+        ax.set_ylim(lb_edge - d, ub_edge + d)
     plt.show()
     # plt.savefig('./process_reduction.png', dpi=500)
