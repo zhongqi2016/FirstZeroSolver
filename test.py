@@ -4,7 +4,7 @@ import pandas as pd
 import solv_fzcp as sfzcp
 import uvarprob as uvpr
 import interval as ival
-from processor_new import Estimator
+from processor_new import Estimator, Division
 
 
 def log_point(x, points_list):
@@ -312,7 +312,7 @@ def get_full_interval(intervals):
             return ival.Interval([intervals[0].x[0], intervals[-1].x[1]])
 
 
-def test_last(df, eps, repeat, global_lip=True):
+def test_last(df, eps, repeat, global_lip=True, div=Division.Bisection, alp=0.7):
     # print('test.Index,PC_N,PI_N,QC_N,QI_N,PC_R,PI_R,QC_R,QI_R')
     time_list = np.zeros((len(list(df.itertuples())), 9), dtype=float)
     it_list = np.zeros((len(list(df.itertuples())), 9), dtype=int)
@@ -340,7 +340,7 @@ def test_last(df, eps, repeat, global_lip=True):
             T1 = time.perf_counter()
             PC_N = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=Estimator.PSL,
-                                    reduction=False)
+                                    reduction=False, div=div, alp=alp)
             T2 = time.perf_counter()
             time_PC_N = (T2 - T1)
             it_list_row[1] = PC_N.nsteps
@@ -350,7 +350,7 @@ def test_last(df, eps, repeat, global_lip=True):
             T1 = time.perf_counter()
             PI_N = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=Estimator.PSL,
-                                    reduction=False)
+                                    reduction=False, div=div, alp=alp)
             T2 = time.perf_counter()
             time_PI_N = (T2 - T1)
             it_list_row[2] = PI_N.nsteps
@@ -360,7 +360,7 @@ def test_last(df, eps, repeat, global_lip=True):
             T1 = time.perf_counter()
             QC_N = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=Estimator.PSQE,
-                                    reduction=False)
+                                    reduction=False, div=div, alp=alp)
             T2 = time.perf_counter()
             time_QC_N = (T2 - T1)
             it_list_row[3] = QC_N.nsteps
@@ -370,7 +370,7 @@ def test_last(df, eps, repeat, global_lip=True):
             T1 = time.perf_counter()
             QI_N = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=Estimator.PSQE,
-                                    reduction=False)
+                                    reduction=False, div=div, alp=alp)
             T2 = time.perf_counter()
             time_QI_N = (T2 - T1)
             it_list_row[4] = QI_N.nsteps
@@ -380,7 +380,7 @@ def test_last(df, eps, repeat, global_lip=True):
             T1 = time.perf_counter()
             PC_R = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=Estimator.PSL,
-                                    reduction=True)
+                                    reduction=True, div=div, alp=alp)
             T2 = time.perf_counter()
             time_PC_R = (T2 - T1)
             it_list_row[5] = PC_R.nsteps
@@ -390,7 +390,7 @@ def test_last(df, eps, repeat, global_lip=True):
             T1 = time.perf_counter()
             PI_R = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=Estimator.PSL,
-                                    reduction=True)
+                                    reduction=True, div=div, alp=alp)
             T2 = time.perf_counter()
             time_PI_R = (T2 - T1)
             it_list_row[6] = PI_R.nsteps
@@ -400,7 +400,7 @@ def test_last(df, eps, repeat, global_lip=True):
             T1 = time.perf_counter()
             QC_R = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=Estimator.PSQE,
-                                    reduction=True)
+                                    reduction=True, div=div, alp=alp)
             T2 = time.perf_counter()
             time_QC_R = (T2 - T1)
             it_list_row[7] = QC_R.nsteps
@@ -410,7 +410,7 @@ def test_last(df, eps, repeat, global_lip=True):
             T1 = time.perf_counter()
             QI_R = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
                                     global_lipschitz_interval=global_lip, estimator=Estimator.PSQE,
-                                    reduction=True)
+                                    reduction=True, div=div, alp=alp)
             T2 = time.perf_counter()
             time_QI_R = (T2 - T1)
             it_list_row[8] = QI_R.nsteps
@@ -514,3 +514,137 @@ def test_last(df, eps, repeat, global_lip=True):
     # print_row3(min_interval_list_r, 'Min')
     # print_row3(max_interval_list_r, 'Max')
     # print_row3(avg_interval_list_r, 'Average')
+
+
+def test_linear(df, eps, repeat, global_lip=True):
+    time_list = np.zeros((len(list(df.itertuples())), 5), dtype=float)
+    it_list = np.zeros((len(list(df.itertuples())), 5), dtype=int)
+    full_interval_list = np.zeros((len(list(df.itertuples())), 5), dtype=ival.Interval)
+    for num in range(0, repeat):
+        i = 0
+        for test in df.itertuples():
+            # eps = ep * (test.b - test.a)
+            it_list_row = np.zeros(5, dtype=int)
+            time_list_row = np.zeros(5, dtype=float)
+            full_interval_row = np.zeros(5, dtype=ival.Interval)
+
+            points_db[test.Index] = {'bnb2_pslint_points_list': []}
+            prob = uvpr.UniVarProblem(test.Index, test.objective, test.a, test.b, test.min_f, test.min_x,
+                                      lambda x: log_point(x, points_db[test.Index]['bnb2_pslint_points_list']), True)
+
+            T1 = time.perf_counter()
+            Cas = sfzcp.cas(prob=prob, epsilon=eps * (test.b - test.a))
+            T2 = time.perf_counter()
+            time_Cas = (T2 - T1)
+            it_list_row[0] = Cas.nsteps
+            full_interval_row[0] = get_full_interval(Cas.first_crossing_zero_point)
+            time_list_row[0] += time_Cas / repeat * 1000
+
+            T1 = time.perf_counter()
+            PC_N = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
+                                    global_lipschitz_interval=global_lip, estimator=Estimator.PSL,
+                                    reduction=False)
+            T2 = time.perf_counter()
+            time_PC_N = (T2 - T1)
+            it_list_row[1] = PC_N.nsteps
+            full_interval_row[1] = get_full_interval(PC_N.first_crossing_zero_point)
+            time_list_row[1] += time_PC_N / repeat * 1000
+
+            T1 = time.perf_counter()
+            PI_N = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
+                                    global_lipschitz_interval=global_lip, estimator=Estimator.PSL,
+                                    reduction=False)
+            T2 = time.perf_counter()
+            time_PI_N = (T2 - T1)
+            it_list_row[2] = PI_N.nsteps
+            full_interval_row[2] = get_full_interval(PI_N.first_crossing_zero_point)
+            time_list_row[2] += time_PI_N / repeat * 1000
+
+            T1 = time.perf_counter()
+            PC_R = sfzcp.new_method(prob, symm=True, epsilon=eps * (test.b - test.a),
+                                    global_lipschitz_interval=global_lip, estimator=Estimator.PSL,
+                                    reduction=True)
+            T2 = time.perf_counter()
+            time_PC_R = (T2 - T1)
+            it_list_row[3] = PC_R.nsteps
+            full_interval_row[3] = get_full_interval(PC_R.first_crossing_zero_point)
+            time_list_row[3] += time_PC_R / repeat * 1000
+
+            T1 = time.perf_counter()
+            PI_R = sfzcp.new_method(prob, symm=False, epsilon=eps * (test.b - test.a),
+                                    global_lipschitz_interval=global_lip, estimator=Estimator.PSL,
+                                    reduction=True)
+            T2 = time.perf_counter()
+            time_PI_R = (T2 - T1)
+            it_list_row[4] = PI_R.nsteps
+            full_interval_row[4] = get_full_interval(PI_R.first_crossing_zero_point)
+            time_list_row[4] += time_PI_R / repeat * 1000
+
+            it_list[i] = it_list_row
+            full_interval_list[i] = full_interval_row
+            time_list[i] += time_list_row
+            i = i + 1
+
+    index = 0
+    print('test.Index,IBB,PL_N,PI_N,PL_R,PI_R')
+    for time_row in time_list:
+        index = index + 1
+        print('%d & %.3f & %.3f & %.3f & %.3f & %.3f \\\\' % (index,
+                                                              time_row[0],
+                                                              time_row[1],
+                                                              time_row[2],
+                                                              time_row[3],
+                                                              time_row[4]
+                                                              ))
+    min = getMin(time_list)
+    max = getMax(time_list)
+    avg = getAvg(time_list)
+    print_row_f3(min, 'Min')
+    print_row_f3(max, 'Max')
+    print_row_f3(avg, 'Average')
+
+    min_list = getMinRatio(time_list)
+    max_list = getMaxRatio(time_list)
+    avg_list = getAvgRatio(time_list)
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
+
+    index = 0
+    print('test.Index,IBB,PL_N,PI_N,PL_R,PI_R')
+    for it_row in it_list:
+        index = index + 1
+        print('%d & %d & %d & %d & %d & %d \\\\' % (index,
+                                                    it_row[0], it_row[1],
+                                                    it_row[2], it_row[3],
+                                                    it_row[4]))
+    min_it = getMin(it_list)
+    max_it = getMax(it_list)
+    avg_it = getAvg(it_list)
+    print_row_int(min_it, 'Min')
+    print_row_int(max_it, 'Max')
+    print_row_f1(avg_it, 'Average')
+
+    min_list = getMinRatio(it_list)
+    max_list = getMaxRatio(it_list)
+    avg_list = getAvgRatio(it_list)
+    print_row_f1(min_list, 'Min')
+    print_row_f1(max_list, 'Max')
+    print_row_f1(avg_list, 'Average')
+
+    index = 0
+    print('test.Index,IBB,PL_N,PI_N,PL_R,PI_R')
+    for interval_row in full_interval_list:
+        index = index + 1
+        print("{} & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ &\\\\".format(index,
+                                                                   interval_row[0],
+                                                                   interval_row[1],
+                                                                   interval_row[2],
+                                                                   interval_row[3],
+                                                                   interval_row[4]))
+    min_interval_list = getMin(full_interval_list)
+    max_interval_list = getMax(full_interval_list)
+    avg_interval_list = getAvg(full_interval_list)
+    print_row_f5(min_interval_list, 'Min')
+    print_row_f5(max_interval_list, 'Max')
+    print_row_f5(avg_interval_list, 'Average')
