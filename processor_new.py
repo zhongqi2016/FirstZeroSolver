@@ -1,8 +1,8 @@
+from os.path import split
+
 import psqe_bounds as psqe
 import psl_bounds as psl
-import copy
 from enum import Enum, auto
-
 import interval as ival
 
 
@@ -21,7 +21,12 @@ class Division(Enum):
     Falsi: Regula falsi or method of false position
     """
     Bisection = auto()
+    Piyavskii = auto()
     Falsi = auto()
+    FalsiTan = auto()
+    Casado = auto()
+    Baumann = auto()
+    FalsiLipschitz = auto()
 
 
 class ProcData:
@@ -38,12 +43,14 @@ class ProcData:
         self.sub_interval = sub_interval
         self.fa = fa
         self.fb = fb
+        self.lb = None
+        self.ub = None
 
 
 class ProcessorNew:
 
     def __init__(self, rec_v, rec_x, problem, eps, global_lipint=False, use_symm_lipint=False,
-                 estimator=Estimator.PSQE, reduction=True, div=Division.Bisection, alp=0.7):
+                 estimator=Estimator.PSQE, reduction=True, div=Division.Bisection, alp=0.7, rho=36):
         """
         Initializes processor
         Args:
@@ -67,6 +74,7 @@ class ProcessorNew:
         self.running = True
         self.div = div
         self.alp = alp
+        self.rho = rho
         if self.estimator == Estimator.PSQE:
             self.lip = problem.ddf(ival.Interval([problem.a, problem.b]))
         elif self.estimator == Estimator.PSL:
@@ -99,15 +107,37 @@ class ProcessorNew:
             return psqe.PSQE_Bounds(a=a, b=b, alp=self.lip.x[0], bet=self.lip.x[1], fa=data.fa, fb=data.fb,
                                     dfa=self.problem.df(a), dfb=self.problem.df(b), under=under)
 
-    def get_split(self, data: ProcData, lam=0.9):
+    def get_split(self, data: ProcData, lam=0.8):
         mid = data.sub_interval.x[0] + (data.sub_interval.x[1] - data.sub_interval.x[0]) / 2
-        if self.div == Division.Bisection or data.fb >= 0:
-            return mid
-        elif self.div == Division.Falsi:
-            return (1 - lam) * mid + lam * (data.sub_interval.x[0] * data.fb - data.sub_interval.x[1] * data.fa) / (
+        match self.div:
+            case Division.Bisection:
+                return mid
+            case Division.Falsi:
+                if data.fb >= 0:
+                    return mid
+                return (1 - lam) * mid + lam * (data.sub_interval.x[0] * data.fb - data.sub_interval.x[1] * data.fa) / (
                         data.fb - data.fa)
+            # case Division.Piyavskii:
+            #
+            case _:
+                raise ValueError("Unknown division method")
+
+    def get_split_casado(self, data: ProcData, upper_bound: float, lower_bound: float):
+        widthX = data.sub_interval.x[1] - data.sub_interval.x[0]
+        widthF = upper_bound - lower_bound
+        if widthF == 0:
+            return data.sub_interval.x[0] + widthX / 2
+        ratio = upper_bound / widthF
+        if ratio <= 0.33:
+            beta = 0.33 * widthX
+        elif ratio <= 0.66:
+            beta = ratio * widthX
         else:
-            raise ValueError("Unknown division method")
+            if (upper_bound - data.fb) <= (data.fb - lower_bound):
+                beta = 0.33 * widthX
+            else:
+                beta = 0.66 * widthX
+        return beta + data.sub_interval.x[0]
 
     def fzcp_process(self, data: ProcData):
         """
@@ -115,37 +145,38 @@ class ProcessorNew:
         :param data: the selected subinterval data
         :return: subintervals
         """
-        sub_interval = data.sub_interval
+        # sub_interval = data.sub_interval
+        x1_interval = data.sub_interval.x[0]
+        x2_interval = data.sub_interval.x[1]
         lst = []
         obj = self.problem.objective
-        if self.rec_x - sub_interval.x[0] <= self.eps:
-            self.res_list.append((ival.Interval([sub_interval.x[0], self.rec_x]), 'certain'))
+        if self.rec_x - x1_interval <= self.eps:
+            self.res_list.append((ival.Interval([x1_interval, self.rec_x]), 'certain'))
             self.running = False
             return lst
-        width_of_interval = sub_interval.x[1] - sub_interval.x[0]
+        width_of_interval = x2_interval - x1_interval
         if not self.global_lipint:
-            self.update_lipschitz(sub_interval)
+            self.update_lipschitz(data.sub_interval)
         lower_estimator = self.compute_bounds(data, under=True)
         left_end = lower_estimator.get_left_end()
-
         if left_end is not None:
-            assert (left_end >= sub_interval.x[0])
+            assert (left_end >= x1_interval)
             if width_of_interval <= self.eps:
-                self.res_list.append((ival.Interval([sub_interval.x[0], sub_interval.x[1]]), 'uncertain'))
+                self.res_list.append((ival.Interval([x1_interval, x2_interval]), 'uncertain'))
                 return lst
             if self.reduction:
-                if sub_interval.x[1] < self.rec_x:
+                if x2_interval < self.rec_x:
                     right_end = lower_estimator.get_right_end_under_bound()
                 else:
                     upper_estimator = self.compute_bounds(data, under=False)
                     right_end = upper_estimator.get_right_end_upper_bound()
-                    if right_end >= sub_interval.x[1]:
-                        right_end = sub_interval.x[1]
+                    if right_end >= x2_interval:
+                        right_end = x2_interval
                     else:
                         self.rec_x = right_end
             else:
-                left_end = sub_interval.x[0]
-                right_end = sub_interval.x[1]
+                left_end = x1_interval
+                right_end = x2_interval
 
             if self.reduction:
                 data.fa = obj(left_end)
@@ -153,7 +184,72 @@ class ProcessorNew:
                 data.sub_interval.x[0] = left_end
                 data.sub_interval.x[1] = right_end
             if (right_end - left_end) / width_of_interval > self.alp:
-                split_point = self.get_split(data)
+                # split_point = self.get_split(data)
+                mid = left_end + (right_end - left_end) / 2
+                lam = 0.8
+                match self.div:
+                    case Division.Bisection:
+                        split_point = mid
+                    case Division.Falsi:
+                        if data.fb >= 0:
+                            split_point = mid
+                        else:
+                            split_point = (1 - lam) * mid + lam * (
+                                    left_end * data.fb - right_end * data.fa) / (
+                                                  data.fb - data.fa)
+                    case Division.FalsiTan:
+                        if data.fb >= 0:
+                            split_point = mid
+                        else:
+                            c_falsi = (left_end * data.fb - right_end * data.fa) / (
+                                    data.fb - data.fa)
+                            if data.fa < data.fb:
+                                dfa = self.problem.df(left_end)
+                                if dfa == 0:
+                                    c_tan = mid
+                                else:
+                                    c_tan = left_end - data.fa / dfa
+                            else:
+                                dfb = self.problem.df(right_end)
+                                if dfb == 0:
+                                    c_tan = mid
+                                else:
+                                    c_tan = right_end - data.fb / dfb
+                            if abs(c_tan - mid) < abs(c_falsi - mid):
+                                split_point = (1 - lam) * mid + lam * c_tan
+                            else:
+                                split_point = (1 - lam) * mid + lam * c_falsi
+                    case Division.Piyavskii:
+                        assert self.estimator == Estimator.PSL
+                        if self.reduction:
+                            lower_estimator = self.compute_bounds(data, under=False)
+                        split_point = lower_estimator.c
+                    case Division.Casado:
+                        if self.reduction:
+                            self.compute_bounds(data, under=True)
+                        _, lower_bound = lower_estimator.lower_bound_and_point()
+                        over_estimator = self.compute_bounds(data, under=False)
+                        _, upper_bound = over_estimator.lower_bound_and_point()
+                        split_point = self.get_split_casado(data, upper_bound, lower_bound)
+                    case Division.Baumann:
+                        assert self.estimator == Estimator.PSL
+                        if self.lip.x[0] > 0 or self.lip.x[1] < 0:
+                            split_point = mid
+                        else:
+                            split_point = (1 - lam) * mid + lam * (
+                                    (self.lip.x[1] * data.sub_interval.x[0] - self.lip.x[0] * data.sub_interval.x[
+                                        1]) / (self.lip.x[1] - self.lip.x[0]))
+                    case Division.FalsiLipschitz:
+                        if data.fb >= 0:
+                            split_point = mid
+                        else:
+                            lam = self.rho / (self.lip.width() + self.rho)
+                            split_point = (1 - lam) * mid + lam * (
+                                    left_end * data.fb - right_end * data.fa) / (data.fb - data.fa)
+
+                    case _:
+                        raise ValueError("Unknown division method")
+
                 f_split = obj(split_point)
                 if f_split <= 0:
                     self.rec_x = split_point

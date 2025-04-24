@@ -33,10 +33,13 @@ class PSL_Bounds:
             self.lam = -alp
             self.fa = -fa
             self.fb = -fb
-
-        self.c = (self.fa - self.fb + self.lam * self.b - self.gam * self.a) / (self.lam - self.gam)
-        self.u = (self.lam * self.fa - self.gam * self.fb + self.lam * self.gam * (self.b - self.a)) / (
-                self.lam - self.gam)
+        if self.gam != self.lam:
+            self.c = (self.fa - self.fb + self.lam * self.b - self.gam * self.a) / (self.lam - self.gam)
+            self.u = (self.lam * self.fa - self.gam * self.fb + self.lam * self.gam * (self.b - self.a)) / (
+                    self.lam - self.gam)
+        else:
+            self.c = None
+            self.u = None
         if not self.under:
             self.u = -self.u
 
@@ -53,14 +56,13 @@ class PSL_Bounds:
 
         Returns: underestimator's value
         """
+        if self.gam == self.lam:
+            return self.fa
         if x <= self.c:
             res = self.fa + self.gam * (x - self.a)
         else:
             res = self.fb + self.lam * (x - self.b)
         return res
-
-    def get_fb(self):
-        return self.fb
 
     def nestimator(self, x):
         return -self.estimator(x)
@@ -69,8 +71,6 @@ class PSL_Bounds:
         """
         Returns: Tuple (point where it is achieved, lower bound on interval [a,b])
         """
-        record_x = None
-        record_v = None
         if self.gam >= 0:
             record_x = self.a
             record_v = self.fa
@@ -95,6 +95,12 @@ class PSL_Bounds:
             get the first root of under estimator
         """
         assert self.under
+        if self.gam==self.lam:
+            if self.fa==0:
+                return self.a
+            else:
+                return None
+
         if self.u <= 0:
             return self.a - self.fa / self.gam
         elif self.u > 0 and self.fb <= 0:
@@ -107,6 +113,11 @@ class PSL_Bounds:
             get the first root of over estimator
         """
         assert not self.under
+        if self.gam==self.lam:
+            if self.fa==0:
+                return self.a
+            else:
+                return None
         if self.u > 0:
             return self.b - self.fb / self.lam
         else:
@@ -116,6 +127,11 @@ class PSL_Bounds:
         """
             get the last root of under estimator
         """
+        if self.gam==self.lam:
+            if self.fa==0:
+                return self.a
+            else:
+                return None
         assert self.u <= 0
         return self.b - self.fb / self.lam
 

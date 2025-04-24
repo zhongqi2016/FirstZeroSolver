@@ -1,8 +1,7 @@
-import math
 import sys
-# from sortedcontainers import SortedKeyList
 from collections import namedtuple
 import processor_new as newproc
+from processor_new import Division
 import processor_Casado as casproc
 
 import interval as ival
@@ -33,15 +32,22 @@ def cas(prob, max_steps=sys.maxsize, epsilon=1e-2, known_record=False):
 
 
 def new_method(prob, symm=True, max_steps=sys.maxsize, epsilon=1e-2, global_lipschitz_interval=False,
-               known_record=False, estimator=newproc.Estimator.PSQE, reduction=True, div=newproc.Division.Bisection,
-               alp=0.7):
+               known_record=False, estimator=newproc.Estimator.PSQE, reduction=True, div=Division.Bisection,
+               alp=0.7, rho=36):
+    if div == Division.Piyavskii:
+        if estimator != newproc.Estimator.PSL:
+            return TestResult(nsteps=0, first_crossing_zero_point=[])
+    elif div == Division.Baumann:
+        if estimator != newproc.Estimator.PSL:
+            return TestResult(nsteps=0, first_crossing_zero_point=[])
+
     if prob.objective(prob.b) < 0:
         rec_x = prob.b
     else:
         rec_x = prob.b + 0.1
     psp = newproc.ProcessorNew(rec_v=get_initial_recval(prob, known_record), rec_x=rec_x, problem=prob,
                                eps=epsilon, global_lipint=global_lipschitz_interval, use_symm_lipint=symm,
-                               estimator=estimator, reduction=reduction, div=div, alp=alp)
+                               estimator=estimator, reduction=reduction, div=div, alp=alp, rho=rho)
     sl = []
     interval = ival.Interval([prob.a, prob.b])
     data = newproc.ProcData(sub_interval=interval, fa=prob.objective(prob.a), fb=prob.objective(prob.b))

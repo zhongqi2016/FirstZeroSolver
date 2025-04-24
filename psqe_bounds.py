@@ -130,7 +130,6 @@ class PSQE_Bounds:
             x = self.find_argmin(x_list[i], df_list[i], x_list[i + 1], df_list[i + 1])
             if not (x is None):
                 check_list.append(x)
-        # print(check_list)
         for x in check_list:
             v = self.estimator(x)
             if record_v is None or v < record_v:

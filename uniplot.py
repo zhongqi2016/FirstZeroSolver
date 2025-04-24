@@ -289,5 +289,6 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
     for i in range(num_iterations):
         ax = axes[i // cols, i % cols]
         ax.set_ylim(lb_edge - d, ub_edge + d)
-    plt.show()
-    # plt.savefig('./process_reduction.png', dpi=500)
+    # plt.savefig('./process.png', dpi=500)
+    # plt.show()
+    return plt
