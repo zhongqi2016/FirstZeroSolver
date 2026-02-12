@@ -34,7 +34,7 @@ class ProcData:
     The subproblem data used in algorithm
     """
 
-    def __init__(self, sub_interval: ival.Interval, fa: float, fb: float):
+    def __init__(self, sub_interval: ival.Interval, fa: float, fb: float, lip, update_lip=True):
         """
         The constructor
         Args:
@@ -45,12 +45,14 @@ class ProcData:
         self.fb = fb
         self.lb = None
         self.ub = None
+        self.lip = lip
+        self.update_lip = update_lip
 
 
 class ProcessorNew:
 
     def __init__(self, rec_v, rec_x, problem, eps, global_lipint=False, use_symm_lipint=False,
-                 estimator=Estimator.PSQE, reduction=True, div=Division.Bisection, alp=0.7, rho=36):
+                 estimator=Estimator.PSQE, reduction=True, adap_lip=False, div=Division.Bisection, alp=0.7, rho=36):
         """
         Initializes processor
         Args:
@@ -75,36 +77,37 @@ class ProcessorNew:
         self.div = div
         self.alp = alp
         self.rho = rho
-        if self.estimator == Estimator.PSQE:
-            self.lip = problem.ddf(ival.Interval([problem.a, problem.b]))
-        elif self.estimator == Estimator.PSL:
-            self.lip = problem.df(ival.Interval([problem.a, problem.b]))
-        else:
-            raise ValueError("Unknown estimator")
-        if self.use_symm_lipint:
-            L = max(-self.lip.x[0], self.lip.x[1])
-            self.lip = ival.Interval([-L, L])
+        self.adap_lip = adap_lip
+        # if self.estimator == Estimator.PSQE:
+        #     self.lip = problem.ddf(ival.Interval([problem.a, problem.b]))
+        # elif self.estimator == Estimator.PSL:
+        #     self.lip = problem.df(ival.Interval([problem.a, problem.b]))
+        # else:
+        #     raise ValueError("Unknown estimator")
+        # if self.use_symm_lipint:
+        #     L = max(-self.lip.x[0], self.lip.x[1])
+        #     self.lip = ival.Interval([-L, L])
 
-    def update_lipschitz(self, sub_interval: ival.Interval):
+    def update_lipschitz(self, data: ProcData):
         if self.estimator == Estimator.PSL:
-            lip = self.problem.df(sub_interval)
+            lip = self.problem.df(data.sub_interval)
             if self.use_symm_lipint:
                 L = max(-lip.x[0], lip.x[1])
                 lip = ival.Interval([-L, L])
         else:
-            lip = self.problem.ddf(sub_interval)
+            lip = self.problem.ddf(data.sub_interval)
             if self.use_symm_lipint:
                 L = max(-lip.x[0], lip.x[1])
                 lip = ival.Interval([-L, L])
-        self.lip = lip
+        data.lip = lip
 
     def compute_bounds(self, data: ProcData, under: bool):
         a = data.sub_interval.x[0]
         b = data.sub_interval.x[1]
         if self.estimator == Estimator.PSL:
-            return psl.PSL_Bounds(a, b, self.lip.x[0], self.lip.x[1], data.fa, data.fb, under)
+            return psl.PSL_Bounds(a, b, data.lip.x[0], data.lip.x[1], data.fa, data.fb, under)
         else:
-            return psqe.PSQE_Bounds(a=a, b=b, alp=self.lip.x[0], bet=self.lip.x[1], fa=data.fa, fb=data.fb,
+            return psqe.PSQE_Bounds(a=a, b=b, alp=data.lip.x[0], bet=data.lip.x[1], fa=data.fa, fb=data.fb,
                                     dfa=self.problem.df(a), dfb=self.problem.df(b), under=under)
 
     def get_split(self, data: ProcData, lam=0.8):
@@ -155,8 +158,8 @@ class ProcessorNew:
             self.running = False
             return lst
         width_of_interval = x2_interval - x1_interval
-        if not self.global_lipint:
-            self.update_lipschitz(data.sub_interval)
+        if not self.global_lipint and data.update_lip == True:
+            self.update_lipschitz(data)
         lower_estimator = self.compute_bounds(data, under=True)
         left_end = lower_estimator.get_left_end()
         if left_end is not None:
@@ -168,8 +171,8 @@ class ProcessorNew:
                 if x2_interval < self.rec_x:
                     right_end = lower_estimator.get_right_end_under_bound()
                 else:
-                    upper_estimator = self.compute_bounds(data, under=False)
-                    right_end = upper_estimator.get_right_end_upper_bound()
+                    over_estimator = self.compute_bounds(data, under=False)
+                    right_end = over_estimator.get_right_end_upper_bound()
                     if right_end >= x2_interval:
                         right_end = x2_interval
                     else:
@@ -178,15 +181,23 @@ class ProcessorNew:
                 left_end = x1_interval
                 right_end = x2_interval
 
+            if data.lip.x[1] < 0:
+                new_interval = x1_interval - self.problem.objective(x1_interval) / data.lip
+                new_interval=data.sub_interval.intersect(new_interval)
+                # print(right_end-left_end,new_interval.width())
+
             if self.reduction:
                 data.fa = obj(left_end)
                 data.fb = obj(right_end)
                 data.sub_interval.x[0] = left_end
                 data.sub_interval.x[1] = right_end
+
+            data.update_lip = True
             if (right_end - left_end) / width_of_interval > self.alp:
                 # split_point = self.get_split(data)
                 mid = left_end + (right_end - left_end) / 2
                 lam = 0.8
+                data.update_lip = True
                 match self.div:
                     case Division.Bisection:
                         split_point = mid
@@ -233,17 +244,17 @@ class ProcessorNew:
                         split_point = self.get_split_casado(data, upper_bound, lower_bound)
                     case Division.Baumann:
                         assert self.estimator == Estimator.PSL
-                        if self.lip.x[0] > 0 or self.lip.x[1] < 0:
+                        if data.lip.x[0] > 0 or data.lip.x[1] < 0:
                             split_point = mid
                         else:
                             split_point = (1 - lam) * mid + lam * (
-                                    (self.lip.x[1] * data.sub_interval.x[0] - self.lip.x[0] * data.sub_interval.x[
-                                        1]) / (self.lip.x[1] - self.lip.x[0]))
+                                    (data.lip.x[1] * data.sub_interval.x[0] - data.lip.x[0] * data.sub_interval.x[
+                                        1]) / (data.lip.x[1] - data.lip.x[0]))
                     case Division.FalsiLipschitz:
                         if data.fb >= 0:
                             split_point = mid
                         else:
-                            lam = self.rho / (self.lip.width() + self.rho)
+                            lam = self.rho / (data.lip.width() + self.rho)
                             split_point = (1 - lam) * mid + lam * (
                                     left_end * data.fb - right_end * data.fa) / (data.fb - data.fa)
 
@@ -254,11 +265,14 @@ class ProcessorNew:
                 if f_split <= 0:
                     self.rec_x = split_point
                 else:
-                    data2 = ProcData(sub_interval=ival.Interval([split_point, right_end]), fa=f_split, fb=data.fb)
+                    data2 = ProcData(sub_interval=ival.Interval([split_point, right_end]), fa=f_split, fb=data.fb,
+                                     lip=data.lip)
                     lst.append(data2)
                 data.sub_interval.x[1] = split_point
                 data.fb = f_split
                 lst.append(data)
             else:
+                if self.adap_lip:
+                    data.update_lip = False
                 lst.append(data)
         return lst

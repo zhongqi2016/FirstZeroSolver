@@ -44,9 +44,14 @@ class PSL_Bounds:
             self.u = -self.u
 
     def __repr__(self):
-        return "Piecewise linear estimator " + "a = " + str(self.a) + ", b = " + str(self.b) + ", c = " + str(
-            self.c) + ", alp = " + str(self.gam) + ", bet = " + str(self.lam) \
-            + ", fa = " + str(self.fa) + ", fb = " + str(self.fb)
+        if self.under:
+            return "Piecewise linear under estimator " + "a = " + str(self.a) + ", b = " + str(self.b) + ", c = " + str(
+                self.c) + ", gamma = " + str(self.gam) + ", lambda = " + str(self.lam) \
+                + ", fa = " + str(self.fa) + ", fb = " + str(self.fb)
+        else:
+            return "Piecewise linear over estimator " + "a = " + str(self.a) + ", b = " + str(self.b) + ", c = " + str(
+                self.c) + ", gamma = " + str(-self.lam) + ", lambda = " + str(-self.gam) \
+                + ", fa = " + str(-self.fa) + ", fb = " + str(-self.fb)
 
     def estimator(self, x):
         """
@@ -95,8 +100,8 @@ class PSL_Bounds:
             get the first root of under estimator
         """
         assert self.under
-        if self.gam==self.lam:
-            if self.fa==0:
+        if self.gam == self.lam:
+            if self.fa == 0:
                 return self.a
             else:
                 return None
@@ -113,8 +118,8 @@ class PSL_Bounds:
             get the first root of over estimator
         """
         assert not self.under
-        if self.gam==self.lam:
-            if self.fa==0:
+        if self.gam == self.lam:
+            if self.fa == 0:
                 return self.a
             else:
                 return None
@@ -127,8 +132,8 @@ class PSL_Bounds:
         """
             get the last root of under estimator
         """
-        if self.gam==self.lam:
-            if self.fa==0:
+        if self.gam == self.lam:
+            if self.fa == 0:
                 return self.a
             else:
                 return None

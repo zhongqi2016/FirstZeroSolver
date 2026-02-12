@@ -37,10 +37,12 @@ class Interval:
     def isNoIntersec(self, other):
         return (self.x[0] > other.x[1]) or (self.x[1] < other.x[0])
 
-    def intersec(self, other):
-        if self.x[0] > self.x[1]:
-            raise ValueError(other.x[0], other.x[1], "results in wrong bounds:", self.x[0], self.x[1])
-        return Interval([max(self.x[0], other.x[0]), min(self.x[1], other.x[1])])
+    def intersect(self, other):
+        lo = max(self.x[0], other.x[0])
+        hi = min(self.x[1], other.x[1])
+        if lo > hi:
+            return None
+        return Interval([lo, hi])
 
     def __getitem__(self, item):
         return self.x[item]

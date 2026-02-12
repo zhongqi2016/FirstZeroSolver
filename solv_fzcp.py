@@ -32,8 +32,8 @@ def cas(prob, max_steps=sys.maxsize, epsilon=1e-2, known_record=False):
 
 
 def new_method(prob, symm=True, max_steps=sys.maxsize, epsilon=1e-2, global_lipschitz_interval=False,
-               known_record=False, estimator=newproc.Estimator.PSQE, reduction=True, div=Division.Bisection,
-               alp=0.7, rho=36):
+               known_record=False, estimator=newproc.Estimator.PSQE, reduction=True, adap_lip=False,
+               div=Division.Bisection, alp=0.7, rho=36):
     if div == Division.Piyavskii:
         if estimator != newproc.Estimator.PSL:
             return TestResult(nsteps=0, first_crossing_zero_point=[])
@@ -47,10 +47,11 @@ def new_method(prob, symm=True, max_steps=sys.maxsize, epsilon=1e-2, global_lips
         rec_x = prob.b + 0.1
     psp = newproc.ProcessorNew(rec_v=get_initial_recval(prob, known_record), rec_x=rec_x, problem=prob,
                                eps=epsilon, global_lipint=global_lipschitz_interval, use_symm_lipint=symm,
-                               estimator=estimator, reduction=reduction, div=div, alp=alp, rho=rho)
+                               estimator=estimator, reduction=reduction, adap_lip=adap_lip, div=div, alp=alp, rho=rho)
     sl = []
     interval = ival.Interval([prob.a, prob.b])
-    data = newproc.ProcData(sub_interval=interval, fa=prob.objective(prob.a), fb=prob.objective(prob.b))
+    data = newproc.ProcData(sub_interval=interval, fa=prob.objective(prob.a), fb=prob.objective(prob.b), lip=None)
+    psp.update_lipschitz(data)
     sl.append(data)
     cnt = max_steps
     steps = bnb.bnb_fzcp(sl, cnt, psp)
