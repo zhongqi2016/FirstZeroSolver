@@ -130,7 +130,7 @@ def plot_proc(estimator: Estimator, sym: bool, problem: uvpr.UniVarProblem, num_
                 draw_rect(ax, ole, x1, lb, ub, 'yellow')
                 draw_rect(ax, x2, ore, lb, ub, 'yellow')
                 draw_rect(ax, x1, x2, lb, ub, 'none')
-                draw_rect(ax, ole, ore, lb, ub, 'none')
+
             else:
                 mid = ole + (ore - ole) / 2
                 if problem.objective(mid) > 0:
@@ -140,6 +140,7 @@ def plot_proc(estimator: Estimator, sym: bool, problem: uvpr.UniVarProblem, num_
                     draw_rect(ax, mid, ore, lb, ub, 'green')
                     draw_rect(ax, mid, ore, lb, ub, 'none')
                 work_list.append((ole, mid, lb, ub))
+            draw_rect(ax, ole, ore, lb, ub, 'none')
         else:
             draw_rect(ax, ole, ore, lb, ub, 'blue')
             draw_rect(ax, ole, ore, lb, ub, 'none')
@@ -152,7 +153,8 @@ def plot_proc(estimator: Estimator, sym: bool, problem: uvpr.UniVarProblem, num_
 
     ax.axhline(y=0, linestyle='--', color='black')
     # plt.savefig('./process_reduction.png', dpi=500)
-    plt.show()
+    # plt.show()
+    return plt
 
 
 def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProblem, num_iterations: int,
@@ -257,6 +259,7 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
                     mid = x1 + (x2 - x1) / 2
                     if problem.objective(mid) > 0:
                         work_list.append((mid, x2, lb, ub))
+                        rect_list.append((mid, x2, lb, ub, 'none'))
                     else:
                         record_x = mid
                         rect_list.append((mid, x2, lb, ub, 'green'))
@@ -272,6 +275,7 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
                 mid = ole + (ore - ole) / 2
                 if problem.objective(mid) > 0:
                     work_list.append((mid, ore, lb, ub))
+                    rect_list.append((mid, ore, lb, ub, 'none'))
                 else:
                     record_x = mid
                     rect_list.append((mid, ore, lb, ub, 'green'))
@@ -289,6 +293,8 @@ def plot_proc_by_step(estimator: Estimator, sym: bool, problem: uvpr.UniVarProbl
     for i in range(num_iterations):
         ax = axes[i // cols, i % cols]
         ax.set_ylim(lb_edge - d, ub_edge + d)
+        ax.text(0.43, -0.11, f"({i+1})", transform=ax.transAxes,
+                fontsize=12, va='top', ha='left')
     # plt.savefig('./process.png', dpi=500)
     # plt.show()
     return plt
